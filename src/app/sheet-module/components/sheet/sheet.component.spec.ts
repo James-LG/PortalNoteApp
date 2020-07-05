@@ -1,7 +1,6 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { SheetComponent } from './sheet.component';
-import { CellComponent } from '../cell/cell.component';
 import { SheetModule } from '../../sheet.module';
 
 describe('SheetComponent', () => {
