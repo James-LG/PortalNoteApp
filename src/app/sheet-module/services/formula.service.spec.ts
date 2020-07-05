@@ -83,20 +83,20 @@ describe('FormulaService', () => {
 
     testCases.forEach(test => {
       it(`should solve ${test.input} to ${test.result}`, () => {
-        expect(service.applyFunctions(test.input)).toBe(test.result);
+        expect(service.applyFunctions('1', new Cell('A1', ''), test.input)).toBe(test.result);
       });
     });
 
     it('should solve with whitespace', () => {
-      expect(service.applyFunctions('= AVG( 1 , 3 )')).toBe('=2');
+      expect(service.applyFunctions('1', new Cell('A1', ''), '= AVG( 1 , 3 )')).toBe('=2');
     });
 
     it('should throw error with no delimiters', () => {
-      expect(() => { service.applyFunctions('=SUM(1,2)SUM(1,2)') }).toThrowError();
+      expect(() => { service.applyFunctions('1', new Cell('A1', ''), '=SUM(1,2)SUM(1,2)') }).toThrowError();
     });
 
     it('should throw error with unknown function', () => {
-      expect(() => { service.applyFunctions('=BOB(1,2)') }).toThrowError();
+      expect(() => { service.applyFunctions('1', new Cell('A1', ''), '=BOB(1,2)') }).toThrowError();
     });
   });
 
@@ -208,6 +208,71 @@ describe('FormulaService', () => {
       // assert
       expect(cellA1.dependents).toEqual([cellC1]);
       expect(rootCell.dependencies).toEqual([cellC1]);
+    });
+  });
+
+  describe('getDisplayValue tests', () => {
+    it(`should return non-equations`, () => {
+      expect(service.getDisplayValue('1', new Cell('A1', ''), 'AVG(1,3)')).toBe('AVG(1,3)');
+    });
+
+    it(`should solve functions`, () => {
+      expect(service.getDisplayValue('1', new Cell('A1', ''), '=AVG(1,3)')).toBe('2');
+    });
+
+    it(`should solve match`, () => {
+      expect(service.getDisplayValue('1', new Cell('A1', ''), '=1+3')).toBe('4');
+    });
+
+    it(`should solve functions and math`, () => {
+      expect(service.getDisplayValue('1', new Cell('A1', ''), '=1+AVG(1,3)')).toBe('3');
+    });
+
+    it(`should solve functions and math with cell address`, () => {
+      let cellC1: Cell = {
+        address: 'A1',
+        display: '3',
+        formula: 'q',
+        dependencies: [],
+        dependents: []
+      };
+
+      spyOn(sheetService, 'getCell').withArgs('1', 'C1').and.returnValue(cellC1);
+
+      expect(service.getDisplayValue('1', new Cell('A1', ''), '=1+AVG(C1,3)')).toBe('4');
+    });
+
+    it(`should solve functions and math with cell range`, () => {
+      let cellC1: Cell = {
+        address: 'A1',
+        display: '1',
+        formula: 'q',
+        dependencies: [],
+        dependents: []
+      };
+
+      let cellC2: Cell = {
+        address: 'A1',
+        display: '2',
+        formula: 'q',
+        dependencies: [],
+        dependents: []
+      };
+
+      let cellC3: Cell = {
+        address: 'A1',
+        display: '3',
+        formula: 'q',
+        dependencies: [],
+        dependents: []
+      };
+
+      spyOn(sheetService, 'getCell')
+        .withArgs('1', 'C1').and.returnValue(cellC1)
+        .withArgs('1', 'C2').and.returnValue(cellC2)
+        .withArgs('1', 'C3').and.returnValue(cellC3);
+
+      expect(service.getDisplayValue('1', new Cell('A1', ''), '=1+SUM(C1:C3)')).toBe('7');
     });
   });
 });

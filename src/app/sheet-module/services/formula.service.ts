@@ -89,6 +89,10 @@ export class FormulaService {
   }
 
   public getParameterValues(sheetUuid: string, cell: Cell, input: string): number[] {
+    if (!isNaN(Number(input))) {
+      return [Number(input)];
+    }
+
     let values: number[] = [];
     let dependencies: Cell[] = [];
 
@@ -157,23 +161,26 @@ export class FormulaService {
     rootCell.dependencies = dependencies;
   }
 
-  private sum(params: string[]) {
+  private sum(sheetUuid: string, rootCell: Cell, params: string[]) {
     let sum: number = 0;
 
     params.forEach((param) => {
-      sum += Number(param);
+      let numbers = this.getParameterValues(sheetUuid, rootCell, param);
+      numbers.forEach((number) => {
+        sum += number;
+      });
     });
 
     return sum;
   }
 
-  private avg(params: string[]) {
-    let sum = this.sum(params);
+  private avg(sheetUuid: string, rootCell: Cell, params: string[]) {
+    let sum = this.sum(sheetUuid, rootCell, params);
 
     return sum / params.length;
   }
 
-  public applyFunctions(input: string): string {
+  public applyFunctions(sheetUuid: string, rootCell: Cell, input: string): string {
     let braceCount: number = 0;
     let currentFuncText: string = '';
     let currentFuncName: string = '';
@@ -202,17 +209,17 @@ export class FormulaService {
           let params: string[] = this.getParameters(currentFuncText);
           let processedParams: string[] = [];
           params.forEach((param) => {
-            processedParams.push(this.applyFunctions(param));
+            processedParams.push(this.applyFunctions(sheetUuid, rootCell, param));
           });
 
           let val: string = '';
           switch (currentFuncName) {
             case 'SUM':
-              val = this.sum(processedParams).toString();
+              val = this.sum(sheetUuid, rootCell, processedParams).toString();
               break;
 
             case 'AVG':
-              val = this.avg(processedParams).toString();
+              val = this.avg(sheetUuid, rootCell, processedParams).toString();
               break;
 
             default:
@@ -229,6 +236,15 @@ export class FormulaService {
     }
 
     return input;
+  }
+
+  public getDisplayValue(sheetUuid: string, rootCell: Cell, formula: string): string {
+    if (formula[0] === '=') {
+      formula = this.applyFunctions(sheetUuid, rootCell, formula);
+      formula = this.solveMath(formula).toString();
+    }
+    
+    return formula;
   }
 
   private checkFunctionHasDelimiters(input: string, index: number) {
@@ -251,7 +267,7 @@ export class FormulaService {
 
     while (i < input.length) {
       // current token is whitespace, skip it
-      if (input[i] === ' ') {
+      if (input[i] === ' ' || input[i] === '=') {
         i++
       } else if (input[i] === '(') {
         ops.push(input[i])
