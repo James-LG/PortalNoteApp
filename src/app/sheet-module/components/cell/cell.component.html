@@ -1,4 +1,4 @@
 <div>
     <div class='display' *ngIf="!editing" (click)="setEditing(true)">{{ cell.display }}</div>
-    <app-cell-input #cellInput *ngIf="editing" (focusout)="setEditing(false)"></app-cell-input>
+    <app-cell-input #cellInput *ngIf="editing" [formula]="cell.formula" (focusout)="setEditing(false)"></app-cell-input>
 </div>

@@ -6,7 +6,7 @@
     <div class="flexrow" *ngFor="let y of rowNumbers()" [style.height.px]="rowHeights[y-1]">
         <div class="cell legend yaxis" [style.height.px]="rowHeights[y-1]">{{ y }}</div>
         <div class="cell" *ngFor="let x of columnNumbers()" [style.width.px]="columnWidths[x-1]">
-            <app-cell [cell]="sheetService.getCell(sheet.uuid, sheetService.indexToLetter(x) + y)"></app-cell>
+            <app-cell [sheetUuid]="sheet.uuid" [cell]="sheetService.getCell(sheet.uuid, sheetService.indexToLetter(x) + y)"></app-cell>
         </div>
     </div>
 </div>

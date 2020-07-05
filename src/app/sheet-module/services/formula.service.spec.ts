@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { FormulaService } from './formula.service';
 import { SheetService } from './sheet.service';
 import { Cell } from '../models/cell';
+import { FormulaError } from '../models/formulaError';
 
 describe('FormulaService', () => {
   let sheetService: SheetService;
@@ -226,6 +227,38 @@ describe('FormulaService', () => {
 
     it(`should solve functions and math`, () => {
       expect(service.getDisplayValue('1', new Cell('A1', ''), '=1+AVG(1,3)')).toBe('3');
+    });
+
+    it(`should throw error for ranges in arithmetic`, () => {
+      spyOn(sheetService, 'getCell')
+        .withArgs('1', 'A1').and.returnValue(new Cell('A1', ''))
+        .withArgs('1', 'B1').and.returnValue(new Cell('B1', ''));
+
+      expect(() => { service.getDisplayValue('1', new Cell('A1', ''), '=1+A1:B1'); }).toThrow(new FormulaError('FormulaService', 'Math expressions must not have cell ranges'));
+    });
+
+    it(`should solve math with cell address`, () => {
+      let cellA1: Cell = {
+        address: 'A1',
+        display: '1',
+        formula: 'q',
+        dependencies: [],
+        dependents: []
+      };
+
+      let cellB1: Cell = {
+        address: 'B1',
+        display: '2',
+        formula: 'q',
+        dependencies: [],
+        dependents: []
+      };
+
+      spyOn(sheetService, 'getCell')
+        .withArgs('1', 'A1').and.returnValue(cellA1)
+        .withArgs('1', 'B1').and.returnValue(cellB1);
+
+      expect(service.getDisplayValue('1', new Cell('A1', ''), '=A1+B1')).toBe('3');
     });
 
     it(`should solve functions and math with cell address`, () => {

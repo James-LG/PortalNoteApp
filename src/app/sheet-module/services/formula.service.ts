@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 
 import { SheetService } from './sheet.service';
 import { Cell } from '../models/cell';
+import { FormulaError } from '../models/formulaError';
 
 @Injectable({
   providedIn: 'root'
@@ -241,6 +242,7 @@ export class FormulaService {
   public getDisplayValue(sheetUuid: string, rootCell: Cell, formula: string): string {
     if (formula[0] === '=') {
       formula = this.applyFunctions(sheetUuid, rootCell, formula);
+      formula = this.resolveValuesForMath(sheetUuid, rootCell, formula);
       formula = this.solveMath(formula).toString();
     }
     
@@ -255,6 +257,27 @@ export class FormulaService {
     if (this.precedence(input[index - 1]) == 0 && !['=', ' ', ','].includes(input[index - 1])) {
       throw new Error(`Syntax error at char ${index}: was expecting delimiter.`);
     }
+  }
+
+  private resolveValuesForMath(sheetUuid: string, rootCell: Cell, formula: string): string {
+    let pairs: [string, string][] = [];
+
+    // matches all addresses and address ranges
+    let re = /([A-Z])\w+(:([A-Z])\w+)?/g;
+    let match: RegExpExecArray;
+    while ((match = re.exec(formula)) !== null) {
+      let values = this.getParameterValues(sheetUuid, rootCell, match[0]);
+      if (values.length > 1) {
+        throw new FormulaError('FormulaService', 'Math expressions must not have cell ranges');
+      }
+      pairs.push([match[0], values[0].toString()]);
+    }
+
+    pairs.forEach(pair => {
+      formula = formula.replace(pair[0], pair[1]);
+    });
+
+    return formula;
   }
 
   public solveMath(input: string): number {

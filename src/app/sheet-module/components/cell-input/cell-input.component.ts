@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, Input } from '@angular/core';
 
 @Component({
   selector: 'app-cell-input',
@@ -6,9 +6,8 @@ import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
   styleUrls: ['./cell-input.component.css']
 })
 export class CellInputComponent implements OnInit {
+  @Input() public formula: string;
   @ViewChild('cellInput') cellInput: ElementRef;
-
-  public formula: string;
 
   constructor() { }
 
