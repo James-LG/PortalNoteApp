@@ -2,6 +2,7 @@ import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { CellComponent } from './cell.component';
 import { CellInputComponent } from '../cell-input/cell-input.component';
+import { Cell } from '../../models/cell';
 
 describe('CellComponent', () => {
   let component: CellComponent;
@@ -17,11 +18,7 @@ describe('CellComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(CellComponent);
     component = fixture.componentInstance;
-    component.cell = {
-      address: 'A1',
-      display: 'yo',
-      formula: '=yo'
-    };
+    component.cell = new Cell('A1', '=1');
     fixture.detectChanges();
   });
 

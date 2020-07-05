@@ -27,7 +27,9 @@ export class SheetService {
       let cell: Cell = {
         address: cellAddress,
         display: '',
-        formula: ''
+        formula: '',
+        dependencies: [],
+        dependents: []
       };
       this.sheets.get(sheetUuid).cells.set(cellAddress, cell);
     }

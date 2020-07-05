@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 
 import { FormulaService } from './formula.service';
 import { SheetService } from './sheet.service';
+import { Cell } from '../models/cell';
 
 describe('FormulaService', () => {
   let sheetService: SheetService;
@@ -87,7 +88,7 @@ describe('FormulaService', () => {
     });
 
     it('should solve with whitespace', () => {
-      expect(service.applyFunctions('= AVG( 1 , 3 )')).toBe('=4');
+      expect(service.applyFunctions('= AVG( 1 , 3 )')).toBe('=2');
     });
 
     it('should throw error with no delimiters', () => {
@@ -105,11 +106,15 @@ describe('FormulaService', () => {
       spyOn(sheetService, 'getCell').withArgs('1', 'A1').and.returnValue({
           address: 'A1',
           display: '1',
-          formula: '=1'
+          formula: '=1',
+          dependencies: [],
+          dependents: []
         }
       );
 
-      expect(service.getParameterValues('1', 'A1')).toEqual([1]);
+      let rootCell: Cell = new Cell('B1', '');
+
+      expect(service.getParameterValues('1', rootCell, 'A1')).toEqual([1]);
     });
 
     it(`should get range values`, () => {
@@ -117,31 +122,92 @@ describe('FormulaService', () => {
       spyOn(sheetService, 'getCell').withArgs('1', 'A1').and.returnValue({
         address: 'A1',
         display: '1',
-        formula: 'q'
+        formula: 'q',
+        dependencies: [],
+        dependents: []
       }).withArgs('1', 'A2').and.returnValue({
         address: 'A2',
         display: '2',
-        formula: 'q'
+        formula: 'q',
+        dependencies: [],
+        dependents: []
       }).withArgs('1', 'B1').and.returnValue({
         address: 'B1',
         display: '3',
-        formula: 'q'
+        formula: 'q',
+        dependencies: [],
+        dependents: []
       }).withArgs('1', 'B2').and.returnValue({
         address: 'B2',
         display: '4',
-        formula: 'q'
+        formula: 'q',
+        dependencies: [],
+        dependents: []
       }).withArgs('1', 'C1').and.returnValue({
         address: 'C1',
         display: '5',
-        formula: 'q'
+        formula: 'q',
+        dependencies: [],
+        dependents: []
       }).withArgs('1', 'C2').and.returnValue({
         address: 'C2',
         display: '6',
-        formula: '=1'
+        formula: '=1',
+        dependencies: [],
+        dependents: []
       });
 
-      expect(service.getParameterValues('1', 'A1:C2')).toEqual([1, 2, 3, 4, 5, 6]);
-      expect(service.getParameterValues('1', 'C2:A1')).toEqual([1, 2, 3, 4, 5, 6]);
+      let rootCell: Cell = new Cell('B1', '');
+
+      expect(service.getParameterValues('1', rootCell, 'A1:C2')).toEqual([1, 2, 3, 4, 5, 6]);
+      expect(service.getParameterValues('1', rootCell, 'C2:A1')).toEqual([1, 2, 3, 4, 5, 6]);
+    });
+
+    it(`should resolve dependencies`, () => {
+      // arrange cells
+      let rootCell: Cell = new Cell('B1', '');
+
+      let cellA1 = {
+        address: 'A1',
+        display: '1',
+        formula: 'q',
+        dependencies: [],
+        dependents: []
+      };
+
+      spyOn(sheetService, 'getCell').withArgs('1', 'A1').and.returnValue(cellA1);
+
+      // act
+      service.getParameterValues('1', rootCell, 'A1');
+
+      // assert
+      expect(rootCell.dependencies).toEqual([cellA1]);
+      expect(cellA1.dependents).toEqual([rootCell]);
+    });
+
+    it(`should remove root cell from dependency chain if no longer required`, () => {
+      // arrange cells
+      let rootCell: Cell = new Cell('B1', '');
+      let cellC1 = new Cell('C1', '');
+
+      let cellA1: Cell = {
+        address: 'A1',
+        display: '1',
+        formula: 'q',
+        dependencies: [],
+        dependents: [rootCell, cellC1]
+      };
+
+      rootCell.dependencies.push(cellA1);
+
+      spyOn(sheetService, 'getCell').withArgs('1', 'C1').and.returnValue(cellC1);
+
+      // act
+      service.getParameterValues('1', rootCell, 'C1');
+
+      // assert
+      expect(cellA1.dependents).toEqual([cellC1]);
+      expect(rootCell.dependencies).toEqual([cellC1]);
     });
   });
 });

@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 
 import { SheetService } from './sheet.service';
+import { Cell } from '../models/cell';
 
 @Injectable({
   providedIn: 'root'
@@ -53,9 +54,7 @@ export class FormulaService {
     let currentParam: string = '';
 
     for (let i=0; i<input.length; i++) {
-      if (input[i] === ' ') {
-        // do nothing
-      } else if (braceCount === 1 && input[i] === ',') {
+      if (braceCount === 1 && input[i] === ',') {
         params.push(currentParam);
         currentParam = '';
       } else {
@@ -89,8 +88,9 @@ export class FormulaService {
     return funcName;
   }
 
-  public getParameterValues(sheetUuid: string, input: string): number[] {
+  public getParameterValues(sheetUuid: string, cell: Cell, input: string): number[] {
     let values: number[] = [];
+    let dependencies: Cell[] = [];
 
     if (input.includes(':')) {
       let addresses = input.split(':')
@@ -101,7 +101,7 @@ export class FormulaService {
       let x2 = this.sheetService.getXFromAddress(addresses[1])
       let y2 = this.sheetService.getYFromAddress(addresses[1])
 
-      let minX, maxX, minY, maxY;
+      let minX: number, maxX: number, minY: number, maxY: number;
 
       if (x1 < x2) {
         minX = x1
@@ -123,15 +123,38 @@ export class FormulaService {
         for (let y = minY; y <= maxY; y++) {
           let address = this.sheetService.indexToLetter(x) + y.toString();
           let cell = this.sheetService.getCell(sheetUuid, address);
+          dependencies.push(cell);
           values.push(Number(cell.display));
         }
       }
     } else {
       let cell = this.sheetService.getCell(sheetUuid, input);
+      dependencies.push(cell);
       values.push(Number(cell.display));
     }
 
+    this.recalculateDependencies(cell, dependencies);
     return values;
+  }
+
+  private recalculateDependencies(rootCell: Cell, dependencies: Cell[]) {
+    // cells that are no longer dependencies for the root cell
+    let notFound = rootCell.dependencies.filter(n => !dependencies.includes(n));
+
+    // remove this cell as a dependent from all cells no longer required
+    notFound.forEach(c => {
+      c.dependents = c.dependents.filter(n => n !== rootCell);
+    });
+
+    // cells that are new dependencies for the root cell
+    let newFound = dependencies.filter(n => !rootCell.dependencies.includes(n));
+
+    newFound.forEach(c => {
+      c.dependents.push(rootCell);
+    });
+
+    // set the rootCells dependencies
+    rootCell.dependencies = dependencies;
   }
 
   private sum(params: string[]) {
@@ -155,61 +178,53 @@ export class FormulaService {
     let currentFuncText: string = '';
     let currentFuncName: string = '';
 
-    if (input === '=SUM(1,2)SUM(1,2)') {
-      let hi = 0;
-    }
+    input = input.replace(/\s/g, '');
 
     for (let i=0; i<input.length; i++) {
-      if (input[i] === ' ') {
-        // do nothing
-      } else {
-        if (input[i] === '(') {
-          if (braceCount === 0) {
-            currentFuncName = this.getFunctionName(input, i);
-            currentFuncText = currentFuncName;
-            this.checkFunctionHasDelimiters(input, i - currentFuncText.length);
+      if (input[i] === '(') {
+        if (braceCount === 0) {
+          currentFuncName = this.getFunctionName(input, i);
+          currentFuncText = currentFuncName;
+          this.checkFunctionHasDelimiters(input, i - currentFuncText.length);
+        }
+        braceCount++;
+      }
+
+      if (braceCount > 0) {
+        currentFuncText += input[i];
+      }
+
+      if (input[i] === ')') {
+        braceCount--;
+
+        if (braceCount === 0) {
+          
+          let params: string[] = this.getParameters(currentFuncText);
+          let processedParams: string[] = [];
+          params.forEach((param) => {
+            processedParams.push(this.applyFunctions(param));
+          });
+
+          let val: string = '';
+          switch (currentFuncName) {
+            case 'SUM':
+              val = this.sum(processedParams).toString();
+              break;
+
+            case 'AVG':
+              val = this.avg(processedParams).toString();
+              break;
+
+            default:
+              throw Error(`Syntax Error: ${currentFuncName} is not a recognized function`);
           }
-          braceCount++;
+
+          input = input.replace(currentFuncText, val);
+
+          i -= (currentFuncText.length - val.length);
+
+          currentFuncText = '';
         }
-
-        if (braceCount > 0) {
-          currentFuncText += input[i];
-        }
-
-        if (input[i] === ')') {
-          braceCount--;
-
-          if (braceCount === 0) {
-            
-            let params: string[] = this.getParameters(currentFuncText);
-            let processedParams: string[] = [];
-            params.forEach((param) => {
-              processedParams.push(this.applyFunctions(param));
-            });
-
-            let val: string = '';
-            switch (currentFuncName) {
-              case 'SUM':
-                val = this.sum(processedParams).toString();
-                break;
-
-              case 'AVG':
-                val = this.avg(processedParams).toString();
-                break;
-
-              default:
-                throw Error(`Syntax Error: ${currentFuncName} is not a recognized function`);
-            }
-
-            input = input.replace(currentFuncText, val);
-
-            i -= (currentFuncText.length - val.length);
-
-            currentFuncText = '';
-          }
-        }
-
-        
       }
     }
 
